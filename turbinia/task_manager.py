@@ -18,7 +18,6 @@ from __future__ import unicode_literals, absolute_import
 
 import logging
 from datetime import datetime
-import sys
 import time
 
 from prometheus_client import Counter
