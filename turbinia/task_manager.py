@@ -17,6 +17,7 @@
 import logging
 from copy import deepcopy
 from datetime import datetime
+import sys
 import time
 
 from prometheus_client import Counter
@@ -240,7 +241,7 @@ class BaseTaskManager:
       jobs_list = self.jobs
 
     # TODO(aarontp): Add some kind of loop detection in here so that jobs can
-    # register for Evidence(), or other evidence types that may be a super
+    # register for Evidence(), or or other evidence types that may be a super
     # class of the output of the job itself.  Short term we could potentially
     # have a run time check for this upon Job instantiation to prevent it.
     for job in jobs_list:
