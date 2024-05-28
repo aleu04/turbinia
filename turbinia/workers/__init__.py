@@ -83,6 +83,10 @@ if 'turbinia_worker_exception_failure' not in metric_names:
   turbinia_worker_tasks_timeout_celery_soft = Counter(
       'turbinia_worker_tasks_timeout_celery_soft',
       'Total number of Tasks timed out due to Celery soft timeout')
+  turbinia_evidence_size_preprocessed = Histogram(
+      'turbinia_evidence_size_preprocessed',
+      'Starting size of all evidence passed to active tasks',
+      ["job"])
 
 
 class Priority(IntEnum):
@@ -1083,6 +1087,11 @@ class TurbiniaTask:
 
         self.evidence_setup(evidence)
         self.result.evidence_size = evidence.size
+        evidence_size = self.evidence_size or self.result.evidence_size or 0.0
+        log.info(f'Task evidence size: {self.evidence_size}; Evidence size: {evidence.size}')
+        turbinia_evidence_size_preprocessed.labels(job=str(self.job_name)).observe(float(evidence_size))
+        log.info(
+          f'Task {self.name:s} for job {str(self.job_name):s} processing evidence {str(evidence):s} of size {evidence_size:f}')
 
         if config.VERSION_CHECK:
           if self.turbinia_version != __version__:

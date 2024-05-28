@@ -73,13 +73,17 @@ turbinia_jobs_total = Counter(
 turbinia_jobs_completed_total = Counter(
     'turbinia_jobs_completed_total', 'Total number jobs resolved')
 turbinia_server_request_total = Counter(
-    'turbinia_server_request_total', 'Total number of requests received.')
+    'turbinia_server_request_total', 'Total number of requests received')
 turbinia_server_task_timeout_total = Counter(
     'turbinia_server_task_timeout_total',
-    'Total number of Tasks that have timed out on the Server.')
+    'Total number of Tasks that have timed out on the Server')
 turbinia_result_success_invalid = Counter(
     'turbinia_result_success_invalid',
     'The result returned from the Task had an invalid success status of None')
+turbinia_evidence_size_processed = Counter(
+    'turbinia_evidence_size_processed',
+    'End size of the total evidence processed',
+    ["job"])
 
 
 def get_task_manager():
@@ -236,7 +240,7 @@ class BaseTaskManager:
       jobs_list = self.jobs
 
     # TODO(aarontp): Add some kind of loop detection in here so that jobs can
-    # register for Evidence(), or or other evidence types that may be a super
+    # register for Evidence(), or other evidence types that may be a super
     # class of the output of the job itself.  Short term we could potentially
     # have a run time check for this upon Job instantiation to prevent it.
     for job in jobs_list:
@@ -520,7 +524,7 @@ class BaseTaskManager:
     if not isinstance(task_result.evidence, list):
       log.warning(
           f'Task {task_result.task_id} {task_result.task_name} '
-          f'from {task_result.worker_name}did not return evidence list')
+          f'from {task_result.worker_name} did not return evidence list')
       task_result.evidence = []
 
     job = self.get_job(task_result.job_id)
@@ -606,6 +610,13 @@ class BaseTaskManager:
               f'Received task results for unknown Job {task.job_id} from Task '
               f'ID {task.id:s}')
         self.state_manager.update_task(task)
+
+        evidence_size = task.result.evidence_size or task.evidence_size or 0.0
+        t = task.result.id or task.id
+        j = self.get_job(task.result.job_id) or job
+        if evidence_size and j.name:
+          turbinia_evidence_size_processed.labels(job=j.name).inc(evidence_size)
+          log.info(f'Task {str(t):s} for job {j.name:s} finished tasks with evidence processed of size {evidence_size:f}')
 
       if under_test:
         break
