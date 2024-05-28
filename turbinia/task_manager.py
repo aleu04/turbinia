@@ -18,6 +18,7 @@ from __future__ import unicode_literals, absolute_import
 
 import logging
 from datetime import datetime
+import sys
 import time
 
 from prometheus_client import Counter
@@ -74,13 +75,28 @@ turbinia_jobs_total = Counter(
 turbinia_jobs_completed_total = Counter(
     'turbinia_jobs_completed_total', 'Total number jobs resolved')
 turbinia_server_request_total = Counter(
-    'turbinia_server_request_total', 'Total number of requests received.')
+    'turbinia_server_request_total', 'Total number of requests received')
 turbinia_server_task_timeout_total = Counter(
     'turbinia_server_task_timeout_total',
-    'Total number of Tasks that have timed out on the Server.')
+    'Total number of Tasks that have timed out on the Server')
 turbinia_result_success_invalid = Counter(
     'turbinia_result_success_invalid',
     'The result returned from the Task had an invalid success status of None')
+turbinia_evidence_size_incoming = Counter(
+    'turbinia_evidence_size_incoming',
+    'Size of the incoming evidence to be processed',
+    ["job"])
+turbinia_evidence_size_tasks = Counter(
+    'turbinia_evidence_size_tasks',
+    'Starting size of all evidence passed to active tasks',
+    ["job"])
+turbinia_evidence_size_written = Counter(
+    'turbinia_evidence_size_written',
+    'Size of all Turbinia evidence written to redis')
+turbinia_evidence_size_end = Counter(
+    'turbinia_evidence_size_end',
+    'End size of the total evidence processed',
+    ["job"])
 
 
 def get_task_manager():
@@ -221,7 +237,10 @@ class BaseTaskManager:
     if not self.jobs:
       raise turbinia.TurbiniaException(
           'Jobs must be registered before evidence can be added')
-    log.info(f'Adding new evidence: {str(evidence_):s}')
+          
+    evidence_size = getattr(evidence_, "size", 0) or evidence_.__dict__.get("size", 0)
+    log.info(f'Evidence "{str(evidence_):s}" starting size {evidence_size:i}.')
+
     job_count = 0
     jobs_list = []
 
@@ -237,7 +256,7 @@ class BaseTaskManager:
       jobs_list = self.jobs
 
     # TODO(aarontp): Add some kind of loop detection in here so that jobs can
-    # register for Evidence(), or or other evidence types that may be a super
+    # register for Evidence(), or other evidence types that may be a super
     # class of the output of the job itself.  Short term we could potentially
     # have a run time check for this upon Job instantiation to prevent it.
     for job in jobs_list:
@@ -252,14 +271,17 @@ class BaseTaskManager:
         job_instance = job(
             request_id=evidence_.request_id, evidence_config=evidence_.config)
 
+        turbinia_evidence_size_incoming.labels(job=job_instance.name).inc(evidence_size)
         for task in job_instance.create_tasks([evidence_]):
           self.add_task(task, job_instance, evidence_)
+          turbinia_evidence_size_tasks.labels(job=job_instance.name).inc(task.evidence_size or evidence_size)
 
         self.running_jobs.append(job_instance)
         log.info(
             f'Adding {job_instance.name:s} job to process {evidence_.name:s}')
         job_count += 1
         turbinia_jobs_total.inc()
+        turbinia_evidence_size_incoming.inc(evidence_size)
 
     if isinstance(evidence_, evidence.Evidence):
       try:
@@ -267,7 +289,13 @@ class BaseTaskManager:
       except TurbiniaException as exception:
         log.error(f'Error writing new evidence to redis: {exception}')
       else:
-        self.state_manager.write_evidence(evidence_.serialize(json_values=True))
+        serialized = evidence_.serialize(json_values=True)
+        evidence_size = getattr(serialized, "size", 0) or serialized.get("size", 0)
+        status = self.state_manager.write_evidence(serialized)
+        if evidence_size and status:
+          turbinia_evidence_size_written.inc(evidence_size)
+          log.info(
+              f'Wrote serialized evidence {evidence_.name:s} of size {evidence_size:i}.')
 
     if not job_count:
       log.warning(
@@ -607,6 +635,14 @@ class BaseTaskManager:
               f'Received task results for unknown Job {task.job_id} from Task '
               f'ID {task.id:s}')
         self.state_manager.update_task(task)
+        if self.check_done():
+          evidence_size = getattr(task, "evidence_size", 0)
+          turbinia_evidence_size_end.inc(evidence_size)
+
+          job = self.get_job(task.result.job_id)
+          log.info(
+            f'Task {task.name:s} for job {job.name:s} finished with evidence processed of size {evidence_size:i}')
+          turbinia_evidence_size_end.labels(job=job.name).inc(evidence_size)
 
       if under_test:
         break
