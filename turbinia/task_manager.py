@@ -260,7 +260,6 @@ class BaseTaskManager:
         job_instance = job(
             request_id=evidence_.request_id, evidence_config=evidence_.config)
 
-        turbinia_evidence_size_incoming.labels(job=job_instance.name).inc(evidence_size)
         for task in job_instance.create_tasks([evidence_]):
           self.add_task(task, job_instance, evidence_)
 
