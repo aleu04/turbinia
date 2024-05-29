@@ -276,7 +276,7 @@ class BaseTaskManager:
       except TurbiniaException as exception:
         log.error(f'Error writing new evidence to redis: {exception}')
       else:
-        self.state_manager.write_evidence(evidence_.serialize(json_values=True)) 
+        self.state_manager.write_evidence(evidence_.serialize(json_values=True))
 
     if not job_count:
       log.warning(
@@ -619,11 +619,10 @@ class BaseTaskManager:
         if self.check_done():
           evidence_size = getattr(task, "evidence_size", 0)
           turbinia_evidence_size_processed.inc(evidence_size)
-
           job = self.get_job(task.result.job_id)
+          turbinia_evidence_size_processed.labels(job=job.name).inc(evidence_size)
           log.info(
             f'Task {task.name:s} for job {job.name:s} finished with evidence processed of size {evidence_size:i}')
-          turbinia_evidence_size_processed.labels(job=job.name).inc(evidence_size)
 
       if under_test:
         break
