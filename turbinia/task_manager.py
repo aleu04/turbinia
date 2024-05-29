@@ -617,7 +617,6 @@ class BaseTaskManager:
         self.state_manager.update_task(task)
         if self.check_done():
           evidence_size = getattr(task, "evidence_size", 0)
-          turbinia_evidence_size_processed.inc(evidence_size)
           job = self.get_job(task.result.job_id)
           turbinia_evidence_size_processed.labels(job=job.name).inc(evidence_size)
           log.info(
