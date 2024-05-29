@@ -82,6 +82,10 @@ turbinia_server_task_timeout_total = Counter(
 turbinia_result_success_invalid = Counter(
     'turbinia_result_success_invalid',
     'The result returned from the Task had an invalid success status of None')
+turbinia_evidence_size_incoming = Counter(
+    'turbinia_evidence_size_incoming',
+    'Size of the incoming evidence to be processed',
+    ["job"])
 turbinia_evidence_size_processed = Counter(
     'turbinia_evidence_size_processed',
     'End size of the total evidence processed',
@@ -226,10 +230,7 @@ class BaseTaskManager:
     if not self.jobs:
       raise turbinia.TurbiniaException(
           'Jobs must be registered before evidence can be added')
-          
-    evidence_size = getattr(evidence_, "size", 0) or evidence_.__dict__.get("size", 0)
-    log.info(f'Evidence "{str(evidence_):s}" starting size {evidence_size:i}.')
-
+    log.info(f'Adding new evidence: {str(evidence_):s}')
     job_count = 0
     jobs_list = []
 
@@ -263,14 +264,12 @@ class BaseTaskManager:
         turbinia_evidence_size_incoming.labels(job=job_instance.name).inc(evidence_size)
         for task in job_instance.create_tasks([evidence_]):
           self.add_task(task, job_instance, evidence_)
-          turbinia_evidence_size_tasks.labels(job=job_instance.name).inc(task.evidence_size or evidence_size)
 
         self.running_jobs.append(job_instance)
         log.info(
             f'Adding {job_instance.name:s} job to process {evidence_.name:s}')
         job_count += 1
         turbinia_jobs_total.inc()
-        turbinia_evidence_size_incoming.inc(evidence_size)
 
     if isinstance(evidence_, evidence.Evidence):
       try:
@@ -278,13 +277,7 @@ class BaseTaskManager:
       except TurbiniaException as exception:
         log.error(f'Error writing new evidence to redis: {exception}')
       else:
-        serialized = evidence_.serialize(json_values=True)
-        evidence_size = getattr(serialized, "size", 0) or serialized.get("size", 0)
-        status = self.state_manager.write_evidence(serialized)
-        if evidence_size and status:
-          turbinia_evidence_size_written.inc(evidence_size)
-          log.info(
-              f'Wrote serialized evidence {evidence_.name:s} of size {evidence_size:i}.')
+        self.state_manager.write_evidence(evidence_.serialize(json_values=True)) 
 
     if not job_count:
       log.warning(
@@ -631,7 +624,6 @@ class BaseTaskManager:
               f'Received task results for unknown Job {task.job_id} from Task '
               f'ID {task.id:s}')
         self.state_manager.update_task(task)
-
       log.info(f'Evidence sizes set: {str(evidence_sizes):s}')
       if self.check_done():
         for job, tasks in evidence_sizes.items():
@@ -639,7 +631,7 @@ class BaseTaskManager:
             turbinia_evidence_size_processed.labels(job=job).inc(size)
             log.info(
               f'Task {task:s} for job {job:s} finished tasks with evidence processed of size {size:d}')
-
+            
       if under_test:
         break
 
