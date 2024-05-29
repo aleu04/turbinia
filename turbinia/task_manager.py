@@ -277,7 +277,7 @@ class BaseTaskManager:
       except TurbiniaException as exception:
         log.error(f'Error writing new evidence to redis: {exception}')
       else:
-        self.state_manager.write_evidence(evidence_.serialize(json_values=True)) 
+        self.state_manager.write_evidence(evidence_.serialize(json_values=True))
 
     if not job_count:
       log.warning(
