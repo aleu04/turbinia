@@ -617,7 +617,7 @@ class BaseTaskManager:
           task_size[task] = evidence_size 
 
 
-      if config.SINGLE_RUN and self.check_done():
+      if self.check_done():
         for task, size in task_size.items():
           job = self.get_job(task.result.job_id)
           turbinia_evidence_size_processed.labels(job=job.name).inc(size)
