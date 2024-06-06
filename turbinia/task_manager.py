@@ -617,7 +617,7 @@ class BaseTaskManager:
               f'ID {task.id:s}')
         self.state_manager.update_task(task)
         evidence_size = getattr(task, "evidence_size", 0)
-        if evidence_size > 0:
+        if evidence_size:
           task_size[task] = evidence_size 
 
 
