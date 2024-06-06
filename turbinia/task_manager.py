@@ -81,10 +81,6 @@ turbinia_server_task_timeout_total = Counter(
 turbinia_result_success_invalid = Counter(
     'turbinia_result_success_invalid',
     'The result returned from the Task had an invalid success status of None')
-turbinia_evidence_size_incoming = Counter(
-    'turbinia_evidence_size_incoming',
-    'Size of the incoming evidence to be processed',
-    ["job"])
 turbinia_evidence_size_processed = Counter(
     'turbinia_evidence_size_processed',
     'End size of the total evidence processed',
