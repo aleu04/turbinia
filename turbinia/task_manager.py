@@ -604,6 +604,7 @@ class BaseTaskManager:
       # pylint: disable=expression-not-assigned
       [self.add_evidence(x) for x in self.get_evidence()]
 
+      task_size = {}
       for task in self.process_tasks():
         if task.result:
           self.process_result(task.result)
@@ -615,10 +616,15 @@ class BaseTaskManager:
               f'Received task results for unknown Job {task.job_id} from Task '
               f'ID {task.id:s}')
         self.state_manager.update_task(task)
-        if self.check_done():
-          evidence_size = getattr(task, "evidence_size", 0)
+        evidence_size = getattr(task, "evidence_size", 0)
+        if evidence_size > 0:
+          task_size[task] = evidence_size 
+
+
+      if config.SINGLE_RUN and self.check_done():
+        for task, size in task_size.items():
           job = self.get_job(task.result.job_id)
-          turbinia_evidence_size_processed.labels(job=job.name).inc(evidence_size)
+          turbinia_evidence_size_processed.labels(job=job.name).inc(size)
           log.info(
             f'Task {task.name:s} for job {job.name:s} finished with evidence processed of size {evidence_size:i}')
 
