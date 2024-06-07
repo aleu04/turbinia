@@ -600,9 +600,14 @@ class BaseTaskManager:
       # pylint: disable=expression-not-assigned
       [self.add_evidence(x) for x in self.get_evidence()]
 
-      task_size = {}
+      evidence_sizes = {}
       for task in self.process_tasks():
         if task.result:
+          evidence_size = getattr(task.result, "evidence_size", 0)
+          log.info(f'Task result {task.result:s} found under job {task.result.job_name:s} with size {evidence_size:i}')
+          if evidence_size and task.result.job_name:
+            log.info('Setting evidence size.')
+            evidence_sizes[task.result.job_name][task.result] = evidence_size 
           self.process_result(task.result)
         job = self.get_job(task.job_id)
         if job:
@@ -612,17 +617,14 @@ class BaseTaskManager:
               f'Received task results for unknown Job {task.job_id} from Task '
               f'ID {task.id:s}')
         self.state_manager.update_task(task)
-        evidence_size = getattr(task.result, "evidence_size", 0)
-        if evidence_size:
-          task_size[task] = evidence_size 
 
-
+      log.info(f'Evidence sizes set: {evidence_sizes:s}')
       if self.check_done():
-        for task, size in task_size.items():
-          job = self.get_job(task.result.job_id)
-          turbinia_evidence_size_processed.labels(job=job.name).inc(size)
-          log.info(
-            f'Task {task.name:s} for job {job.name:s} finished with evidence processed of size {evidence_size:i}')
+        for job, tasks in evidence_sizes.items():
+          for task, size in tasks.items(): 
+            turbinia_evidence_size_processed.labels(job=job).inc(size)
+            log.info(
+              f'Task {task:s} for job {job:s} finished tasks with evidence processed of size {size:i}')
 
       if under_test:
         break
