@@ -604,13 +604,14 @@ class BaseTaskManager:
       for task in self.process_tasks():
         if task.result:
           evidence_size = getattr(task.result, "evidence_size", 0)
-          log.info(f'Task result {task.result:s} found under job {task.result.job_name:s} with size {evidence_size:d}')
+          log.info(f'Task result (under task) {task.result:s} found under job {task.result.job_name:s} with size {evidence_size:d}')
           if evidence_size and task.result.job_name:
             log.info('Setting evidence size.')
             evidence_sizes[task.result.job_name][task.result] = evidence_size 
           self.process_result(task.result)
         job = self.get_job(task.job_id)
         if job:
+          log.info(f'Task result (under job) {task:s} found under job {job:s} with size {task.evidence_size or 0:d}')
           self.process_job(job, task)
         else:
           log.warning(
