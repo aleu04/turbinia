@@ -612,7 +612,7 @@ class BaseTaskManager:
               f'Received task results for unknown Job {task.job_id} from Task '
               f'ID {task.id:s}')
         self.state_manager.update_task(task)
-        evidence_size = getattr(task, "evidence_size", 0)
+        evidence_size = getattr(task.result, "evidence_size", 0)
         if evidence_size:
           task_size[task] = evidence_size 
 
