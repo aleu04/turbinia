@@ -618,7 +618,7 @@ class BaseTaskManager:
               f'ID {task.id:s}')
         self.state_manager.update_task(task)
 
-      log.info(f'Evidence sizes set: {evidence_sizes:s}')
+      log.info(f'Evidence sizes set: {str(evidence_sizes):s}')
       if self.check_done():
         for job, tasks in evidence_sizes.items():
           for task, size in tasks.items(): 
