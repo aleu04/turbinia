@@ -56,7 +56,6 @@ REQUIRED_VARS = [
     'OUTPUT_DIR',
     'TMP_DIR',
     'SLEEP_TIME',
-    'SINGLE_RUN',
     'MOUNT_DIR_PREFIX',
     'SHARED_FILESYSTEM',
     'DEBUG_TASKS',
@@ -133,7 +132,7 @@ ENVCONFIGVAR = 'TURBINIA_CONFIG_PATH'
 
 CONFIG = None
 
-log = logging.getLogger('turbinia')
+log = logging.getLogger(__name__)
 
 
 def LoadConfig(config_file=None):
