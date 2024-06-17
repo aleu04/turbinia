@@ -17,7 +17,6 @@
 import logging
 from copy import deepcopy
 from datetime import datetime
-import sys
 import time
 
 from prometheus_client import Counter
@@ -612,12 +611,10 @@ class BaseTaskManager:
               f'ID {task.id:s}')
         self.state_manager.update_task(task)
 
-        evidence_size = task.result.evidence_size or task.evidence_size or 0.0
-        t = task.result.id or task.id
         j = self.get_job(task.result.job_id) or job
-        if evidence_size and j.name:
-          turbinia_evidence_size_processed.labels(job=j.name).inc(evidence_size)
-          log.info(f'Task {str(t):s} for job {j.name:s} finished tasks with evidence processed of size {evidence_size:f}')
+        if task.result.evidence_size and j.name:
+          turbinia_evidence_size_processed.labels(job=j.name).inc(task.result.evidence_size)
+          log.info(f'Task {str(task.id):s} for job {j.name:s} finished tasks with evidence processed of size {task.result.evidence_size:f}')
 
       if under_test:
         break
