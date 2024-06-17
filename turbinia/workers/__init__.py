@@ -1087,9 +1087,9 @@ class TurbiniaTask:
 
         self.evidence_setup(evidence)
         self.result.evidence_size = evidence.size
-        turbinia_evidence_size_preprocessed.labels(job=str(self.job_name)).observe(float(self.result.evidence_size))
+        turbinia_evidence_size_preprocessed.labels(job=str(self.job_name)).observe(float(self.result.evidence_size or 0.0))
         log.info(
-          f'Task {self.name:s} for job {str(self.job_name):s} processing evidence {str(evidence):s} of size {self.result.evidence_size:f}')
+          f'Task {self.name:s} for job {str(self.job_name):s} processing evidence {str(evidence):s} of size {self.result.evidence_size or 0.0:f}')
 
         if config.VERSION_CHECK:
           if self.turbinia_version != __version__:
