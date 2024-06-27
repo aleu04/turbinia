@@ -80,8 +80,8 @@ turbinia_server_task_timeout_total = Counter(
 turbinia_result_success_invalid = Counter(
     'turbinia_result_success_invalid',
     'The result returned from the Task had an invalid success status of None')
-turbinia_evidence_size_processed = Counter(
-    'turbinia_evidence_size_processed',
+turbinia_evidence_size_processed_bytes = Counter(
+    'turbinia_evidence_size_processed_bytes',
     'End size of the total evidence processed',
     ["job"])
 
@@ -613,7 +613,7 @@ class BaseTaskManager:
 
         j = self.get_job(task.result.job_id) or job
         if task.result.evidence_size and j.name:
-          turbinia_evidence_size_processed.labels(job=j.name).inc(task.result.evidence_size)
+          turbinia_evidence_size_processed_bytes.labels(job=j.name).inc(task.result.evidence_size)
           log.info(f'Task {str(task.id):s} for job {j.name:s} finished tasks with evidence processed of size {task.result.evidence_size:f}')
 
       if under_test:

@@ -57,6 +57,9 @@ METRICS = {}
 # [1]https://cloud.google.com/datastore/docs/concepts/limits
 REPORT_MAXSIZE = int(1048572 * 0.75)
 
+# Generates buckets ranging from 512 bytes to 1MB, in powers of 2
+SIZE_BUCKETS = [2 ** i for i in range(9, 21)]
+
 log = logging.getLogger(__name__)
 
 # Prevent re-registering metrics if module is loaded multiple times.
@@ -83,10 +86,10 @@ if 'turbinia_worker_exception_failure' not in metric_names:
   turbinia_worker_tasks_timeout_celery_soft = Counter(
       'turbinia_worker_tasks_timeout_celery_soft',
       'Total number of Tasks timed out due to Celery soft timeout')
-  turbinia_evidence_size_preprocessed = Histogram(
-      'turbinia_evidence_size_preprocessed',
+  turbinia_evidence_size_preprocessed_bytes = Histogram(
+      'turbinia_evidence_size_preprocessed_bytes',
       'Starting size of all evidence passed to active tasks',
-      ["job"])
+      ["job"], buckets=SIZE_BUCKETS)
 
 
 class Priority(IntEnum):
@@ -864,6 +867,28 @@ class TurbiniaTask:
       metric = Histogram(
           f'{task_name:s}_duration_seconds', f'Seconds to run {task_name:s}')
       METRICS[task_name] = metric
+      match task_name:
+        case 'AbortTask':
+          continue
+        case 'FileArtifactExtractionTask':
+          job_name = ['LLMArtifactsExtractionJob', 'RedisExtractionJob', 'SSHDExtractionJob', 'JupyterExtractionJob', 'TomcatExtractionJob', 'HTTPAccessLogExtractionJob']
+        case 'LLMAnalyzerTask':
+          job_name = ['LLMAnalysisJob']
+        case 'PlasoParserTask' | 'PlasoHasherTask':
+          job_name = ['PlasoJob']
+        case 'PostgresAccountAnalysisTask':
+          job_name = ['PostgresAcctAnalysis']
+        case 'StringsAsciiTask' | 'StringsUnicodeTask':
+          job_name = ['StringsJob']
+        case 'WordpressAccessLogAnalysisTask':
+          job_name = ['HTTPAccessLogAnalysisJob']
+        case _:
+          job_name = [task_name.replace('Task', 'Job')]
+      # Setting first metric to 0 per https://prometheus.io/docs/practices/instrumentation/#avoid-missing-metrics as
+      # labeled metrics don't auto export 0 by default.
+      for job in job_name:
+        turbinia_evidence_size_preprocessed_bytes.labels(job=job).observe(0.0)
+
 
     log.debug(f'Registered {len(METRICS):d} task metrics')
 
@@ -1087,7 +1112,7 @@ class TurbiniaTask:
 
         self.evidence_setup(evidence)
         self.result.evidence_size = evidence.size
-        turbinia_evidence_size_preprocessed.labels(job=str(self.job_name)).observe(float(self.result.evidence_size or 0.0))
+        turbinia_evidence_size_preprocessed_bytes.labels(job=str(self.job_name)).observe(float(self.result.evidence_size or 0.0))
         log.info(
           f'Task {self.name:s} for job {str(self.job_name):s} processing evidence {str(evidence):s} of size {self.result.evidence_size or 0.0:f}')
 
